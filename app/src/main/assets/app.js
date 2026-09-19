@@ -60,12 +60,6 @@ let currentMode = 'pvp'; // pvp, easy-ai, real-ai
 
 let scores = { X: 0, O: 0, Ties: 0 };
 
-const winningConditions = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
-    [0, 4, 8], [2, 4, 6]             // Diags
-];
-
 // Switch Modes
 modeBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -145,25 +139,15 @@ function drawWinLine(winPattern) {
 }
 
 function checkWinOrDraw() {
-    let roundWon = false;
-    let winPattern = null;
+    const result = GameLogic.getWinner(gameState);
 
-    for (let i = 0; i < winningConditions.length; i++) {
-        const [a, b, c] = winningConditions[i];
-        if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
-            roundWon = true;
-            winPattern = winningConditions[i];
-            break;
-        }
-    }
-
-    if (roundWon) {
+    if (result) {
         status.innerHTML = `<span class="turn-badge win-badge">Player ${currentPlayer} Wins! 🏆</span>`;
         scores[currentPlayer]++;
         updateScoreBoard();
         gameActive = false;
         playSound('win');
-        drawWinLine(winPattern);
+        drawWinLine(result.pattern);
         
         // Confetti if human wins
         if(currentPlayer === 'X' || currentMode === 'pvp') {
@@ -183,7 +167,7 @@ function checkWinOrDraw() {
         return;
     }
 
-    if (!gameState.includes('')) {
+    if (GameLogic.isFull(gameState)) {
         status.innerHTML = `<span class="turn-badge draw-badge">It's a Draw! 🤝</span>`;
         scores.Ties++;
         updateScoreBoard();
@@ -194,7 +178,7 @@ function checkWinOrDraw() {
 }
 
 function resetGame() {
-    gameState = ['', '', '', '', '', '', '', '', ''];
+    gameState = GameLogic.createState();
     currentPlayer = 'X';
     gameActive = true;
     winLine.style.display = 'none';
@@ -215,10 +199,7 @@ async function fetchAiMove() {
     let moveIndex = -1;
 
     if (currentMode === 'easy-ai') {
-        const available = gameState.map((val, i) => val === '' ? i : null).filter(val => val !== null);
-        if(available.length > 0) {
-            moveIndex = available[Math.floor(Math.random() * available.length)];
-        }
+        moveIndex = GameLogic.randomMove(gameState);
         setTimeout(() => {
             aiLoading.style.display = 'none';
             gameActive = true;
@@ -254,8 +235,7 @@ async function fetchAiMove() {
         }
 
         if (moveIndex === -1) {
-            const available = gameState.map((val, i) => val === '' ? i : null).filter(val => val !== null);
-            if(available.length > 0) moveIndex = available[Math.floor(Math.random() * available.length)];
+            moveIndex = GameLogic.randomMove(gameState);
         }
         
         aiLoading.style.display = 'none';
