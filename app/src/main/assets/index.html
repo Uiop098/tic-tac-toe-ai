@@ -4,42 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tic Tac Toe: AI Edition</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Quick Confetti JS for visual flair -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
-    <div class="app-container">
+    <div class="app-container" id="app-container">
+        
         <header>
             <h1>Tic Tac Toe <span class="ai-burst">AI</span></h1>
             <p>Powered by Real LLM API</p>
         </header>
+
+        <div class="scoreboard shadow-card">
+            <div class="score-card player-x">
+                <span class="score-label">PLAYER (X)</span>
+                <span class="score-value" id="scoreX">0</span>
+            </div>
+            <div class="score-card ties">
+                <span class="score-label">TIES</span>
+                <span class="score-value" id="scoreTies">0</span>
+            </div>
+            <div class="score-card player-o">
+                <span class="score-label">AI / P2 (O)</span>
+                <span class="score-value" id="scoreO">0</span>
+            </div>
+        </div>
+
+        <div class="mode-selector shadow-card">
+            <button class="mode-btn active" data-mode="pvp">
+                <span class="icon">👥</span> Local PvP
+            </button>
+            <button class="mode-btn" data-mode="easy-ai">
+                <span class="icon">🤖</span> Easy Bot
+            </button>
+            <button class="mode-btn" data-mode="real-ai">
+                <span class="icon">🧠</span> Real AI
+            </button>
+        </div>
+
+        <div class="game-status" id="status">
+            <span class="turn-badge x-turn">X's Turn</span>
+        </div>
+
+        <div class="board-wrapper">
+            <div class="board" id="board">
+                <div class="cell" data-index="0"></div>
+                <div class="cell" data-index="1"></div>
+                <div class="cell" data-index="2"></div>
+                <div class="cell" data-index="3"></div>
+                <div class="cell" data-index="4"></div>
+                <div class="cell" data-index="5"></div>
+                <div class="cell" data-index="6"></div>
+                <div class="cell" data-index="7"></div>
+                <div class="cell" data-index="8"></div>
+            </div>
+            <!-- Winning Line Overlay -->
+            <div class="win-line" id="winLine"></div>
+            
+            <div class="ai-thinking" id="aiLoading">
+                <div class="spinner"></div>
+                <span>LLM computing move...</span>
+            </div>
+        </div>
+
+        <button id="reset-btn" class="reset-btn shadow-card">Reset Board</button>
         
-        <div class="mode-selector">
-            <button class="mode-btn active" data-mode="pvp">PvP Local</button>
-            <button class="mode-btn" data-mode="easy-ai">Easy Bot</button>
-            <button class="mode-btn" data-mode="real-ai">Real AI (API)</button>
-        </div>
-
-        <div class="game-status" id="status">Player X's Turn</div>
-
-        <div class="board" id="board">
-            <div class="cell" data-index="0"></div>
-            <div class="cell" data-index="1"></div>
-            <div class="cell" data-index="2"></div>
-            <div class="cell" data-index="3"></div>
-            <div class="cell" data-index="4"></div>
-            <div class="cell" data-index="5"></div>
-            <div class="cell" data-index="6"></div>
-            <div class="cell" data-index="7"></div>
-            <div class="cell" data-index="8"></div>
-        </div>
-
-        <button id="reset-btn" class="reset-btn">Reset Game</button>
-        
-        <div class="ai-thinking" id="aiLoading">
-            <div class="spinner"></div> AI is thinking...
-        </div>
     </div>
+    
+    <!-- Audio Elements for UI/UX -->
     <script src="app.js"></script>
 </body>
 </html>

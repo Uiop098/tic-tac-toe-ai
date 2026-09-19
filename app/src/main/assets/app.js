@@ -1,20 +1,69 @@
-
 const board = document.getElementById('board');
 const cells = document.querySelectorAll('.cell');
 const status = document.getElementById('status');
 const resetBtn = document.getElementById('reset-btn');
 const modeBtns = document.querySelectorAll('.mode-btn');
 const aiLoading = document.getElementById('aiLoading');
+const winLine = document.getElementById('winLine');
+const appContainer = document.getElementById('app-container');
+
+// Audio Context for synthetic UI sounds
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(type) {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    if (type === 'x') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'o') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+    } else if (type === 'win') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.setValueAtTime(600, now + 0.1);
+        osc.frequency.setValueAtTime(800, now + 0.2);
+        gainNode.gain.setValueAtTime(0.2, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    } else if (type === 'draw') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.linearRampToValueAtTime(150, now + 0.3);
+        gainNode.gain.setValueAtTime(0.2, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    }
+}
 
 let gameState = ['', '', '', '', '', '', '', '', ''];
 let currentPlayer = 'X';
 let gameActive = true;
 let currentMode = 'pvp'; // pvp, easy-ai, real-ai
 
+let scores = { X: 0, O: 0, Ties: 0 };
+
 const winningConditions = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8],
-    [0, 3, 6], [1, 4, 7], [2, 5, 8],
-    [0, 4, 8], [2, 4, 6]
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
+    [0, 4, 8], [2, 4, 6]             // Diags
 ];
 
 // Switch Modes
@@ -23,12 +72,21 @@ modeBtns.forEach(btn => {
         modeBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentMode = btn.getAttribute('data-mode');
+        // Reset scores on mode switch
+        scores = { X: 0, O: 0, Ties: 0 };
+        updateScoreBoard();
         resetGame();
     });
 });
 
 cells.forEach(cell => cell.addEventListener('click', handleCellClick));
 resetBtn.addEventListener('click', resetGame);
+
+function updateScoreBoard() {
+    document.getElementById('scoreX').innerText = scores.X;
+    document.getElementById('scoreO').innerText = scores.O;
+    document.getElementById('scoreTies').innerText = scores.Ties;
+}
 
 function handleCellClick(e) {
     const cell = e.target;
@@ -49,33 +107,88 @@ function makeMove(index, player) {
     cell.textContent = player;
     cell.classList.add(player.toLowerCase());
     
+    playSound(player.toLowerCase());
     checkWinOrDraw();
     
     if (gameActive) {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        status.textContent = `Player ${currentPlayer}'s Turn`;
+        status.innerHTML = `<span class="turn-badge ${currentPlayer.toLowerCase()}-turn">${currentPlayer}'s Turn</span>`;
     }
+}
+
+function drawWinLine(winPattern) {
+    const startCell = cells[winPattern[0]];
+    const endCell = cells[winPattern[2]];
+    
+    const startRect = startCell.getBoundingClientRect();
+    const endRect = endCell.getBoundingClientRect();
+    const boardRect = board.getBoundingClientRect();
+
+    const startX = startRect.left + startRect.width / 2 - boardRect.left;
+    const startY = startRect.top + startRect.height / 2 - boardRect.top;
+    const endX = endRect.left + endRect.width / 2 - boardRect.left;
+    const endY = endRect.top + endRect.height / 2 - boardRect.top;
+
+    const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+    const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+
+    winLine.style.width = '0px';
+    winLine.style.height = '6px';
+    winLine.style.left = `${startX}px`;
+    winLine.style.top = `${startY - 3}px`;
+    winLine.style.transform = `rotate(${angle}deg)`;
+    winLine.style.display = 'block';
+
+    setTimeout(() => {
+        winLine.style.width = `${length}px`;
+    }, 50);
 }
 
 function checkWinOrDraw() {
     let roundWon = false;
+    let winPattern = null;
+
     for (let i = 0; i < winningConditions.length; i++) {
         const [a, b, c] = winningConditions[i];
         if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
             roundWon = true;
+            winPattern = winningConditions[i];
             break;
         }
     }
 
     if (roundWon) {
-        status.textContent = `Player ${currentPlayer} Wins!`;
+        status.innerHTML = `<span class="turn-badge win-badge">Player ${currentPlayer} Wins! 🏆</span>`;
+        scores[currentPlayer]++;
+        updateScoreBoard();
         gameActive = false;
+        playSound('win');
+        drawWinLine(winPattern);
+        
+        // Confetti if human wins
+        if(currentPlayer === 'X' || currentMode === 'pvp') {
+            if(window.confetti) {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: currentPlayer === 'X' ? ['#3b82f6', '#ffffff'] : ['#f43f5e', '#ffffff']
+                });
+            }
+        } else {
+            // Screen shake when AI wins!
+            appContainer.classList.add('shake');
+            setTimeout(() => appContainer.classList.remove('shake'), 300);
+        }
         return;
     }
 
     if (!gameState.includes('')) {
-        status.textContent = 'Game Ended in a Draw!';
+        status.innerHTML = `<span class="turn-badge draw-badge">It's a Draw! 🤝</span>`;
+        scores.Ties++;
+        updateScoreBoard();
         gameActive = false;
+        playSound('draw');
         return;
     }
 }
@@ -84,7 +197,10 @@ function resetGame() {
     gameState = ['', '', '', '', '', '', '', '', ''];
     currentPlayer = 'X';
     gameActive = true;
-    status.textContent = `Player X's Turn`;
+    winLine.style.display = 'none';
+    winLine.style.width = '0px';
+    status.innerHTML = `<span class="turn-badge x-turn">X's Turn</span>`;
+    
     cells.forEach(cell => {
         cell.textContent = '';
         cell.className = 'cell';
@@ -93,13 +209,12 @@ function resetGame() {
 }
 
 async function fetchAiMove() {
-    gameActive = false; // pause clicking
+    gameActive = false; 
     aiLoading.style.display = 'flex';
     
     let moveIndex = -1;
 
     if (currentMode === 'easy-ai') {
-        // Random available spot
         const available = gameState.map((val, i) => val === '' ? i : null).filter(val => val !== null);
         if(available.length > 0) {
             moveIndex = available[Math.floor(Math.random() * available.length)];
@@ -108,7 +223,7 @@ async function fetchAiMove() {
             aiLoading.style.display = 'none';
             gameActive = true;
             if(moveIndex !== -1) makeMove(moveIndex, 'O');
-        }, 500);
+        }, 600);
         return;
     }
 
@@ -127,7 +242,6 @@ async function fetchAiMove() {
             });
             const textResponse = await res.text();
             
-            // Extract the first number found
             const match = textResponse.match(/\d/);
             if (match) {
                 const idx = parseInt(match[0]);
@@ -139,7 +253,6 @@ async function fetchAiMove() {
             console.error(err);
         }
 
-        // Fallback to random if AI fails or picks invalid
         if (moveIndex === -1) {
             const available = gameState.map((val, i) => val === '' ? i : null).filter(val => val !== null);
             if(available.length > 0) moveIndex = available[Math.floor(Math.random() * available.length)];
