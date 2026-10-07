@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tic Tac Toe AI - Cyberpunk Edition</title>
+    <title>Neo Tic-Tac-Toe - Cyberpunk AI</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -13,124 +13,231 @@
 </head>
 <body class="flex flex-col items-center justify-between p-3 sm:p-4 min-h-screen">
 
-    <!-- Top Container -->
+    <!-- Top In-App Notification Toast Popup (Tapable to reply) -->
+    <div id="topToast" class="top-toast glass-panel rounded-2xl p-3 flex items-center justify-between gap-3 shadow-2xl border border-fuchsia-500/40">
+        <div class="flex items-center gap-2.5 flex-1 overflow-hidden" id="toastContent">
+            <div class="relative flex-shrink-0">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-fuchsia-600 to-indigo-500 flex items-center justify-center text-xs text-white font-bold shadow-lg shadow-fuchsia-500/30">
+                    AI
+                </div>
+                <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900 animate-pulse"></span>
+            </div>
+            <div class="flex flex-col min-w-0 flex-1">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] uppercase font-bold text-fuchsia-400 tracking-wider">Troll AI</span>
+                    <span class="text-[9px] text-cyan-400 font-semibold bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/30">Tap to reply 💬</span>
+                </div>
+                <p id="toastMessage" class="text-xs text-slate-100 font-medium truncate mt-0.5">
+                    Ready to lose in binary? 🤖
+                </p>
+            </div>
+        </div>
+        <button id="closeToastBtn" class="text-slate-400 hover:text-white p-1 text-xs flex-shrink-0">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <!-- Main Container -->
     <div id="app-container" class="w-full max-w-md flex flex-col gap-3">
 
-        <!-- Header -->
-        <header class="flex items-center justify-between">
+        <!-- ==================== SCREEN 1: LOBBY / SETUP ==================== -->
+        <div id="lobbyScreen" class="flex flex-col gap-3">
+            <!-- Lobby Header -->
+            <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-indigo-500/40">
+                        <i class="fa-solid fa-gamepad text-white text-base"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-indigo-400">
+                            NEO TIC-TAC-TOE
+                        </h1>
+                        <p id="lobbyLearnerBadge" class="text-[10px] text-indigo-300 font-medium">AI Learning: Calibrating 🧠</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. Select Opponent -->
+            <div class="flex flex-col gap-1.5">
+                <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider px-1">1. Select Opponent</span>
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- AI Card -->
+                    <div class="opponent-card active p-3 rounded-2xl flex flex-col gap-1" data-opponent="ai" id="oppAiCard">
+                        <div class="flex items-center justify-between">
+                            <div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center text-sm">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <span class="text-[9px] font-bold text-fuchsia-400 uppercase bg-fuchsia-950/60 px-2 py-0.5 rounded-full border border-fuchsia-500/30">AI Bot</span>
+                        </div>
+                        <h3 class="text-xs font-black text-white mt-1">Cyber AI</h3>
+                        <p class="text-[10px] text-slate-400 leading-tight">64-bit Bitboard engine with live in-game roasts.</p>
+                    </div>
+
+                    <!-- PvP Card -->
+                    <div class="opponent-card p-3 rounded-2xl flex flex-col gap-1" data-opponent="pvp" id="oppPvpCard">
+                        <div class="flex items-center justify-between">
+                            <div class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-sm">
+                                <i class="fa-solid fa-user-group"></i>
+                            </div>
+                            <span class="text-[9px] font-bold text-cyan-400 uppercase bg-cyan-950/60 px-2 py-0.5 rounded-full border border-cyan-500/30">Local</span>
+                        </div>
+                        <h3 class="text-xs font-black text-white mt-1">Pass & Play</h3>
+                        <p class="text-[10px] text-slate-400 leading-tight">Battle a friend on the same screen (PvP).</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. AI Difficulty Level (Hidden if PvP) -->
+            <div id="lobbyDiffSection" class="flex flex-col gap-1.5">
+                <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider px-1">2. AI Difficulty</span>
+                <div class="grid grid-cols-4 gap-1.5">
+                    <div class="diff-card diff-low p-2 rounded-xl flex flex-col items-center justify-center gap-0.5" data-diff="low">
+                        <span class="text-xs">🟢</span>
+                        <span class="text-[10px] font-bold text-emerald-400">Low</span>
+                    </div>
+                    <div class="diff-card diff-mid p-2 rounded-xl flex flex-col items-center justify-center gap-0.5" data-diff="mid">
+                        <span class="text-xs">🔵</span>
+                        <span class="text-[10px] font-bold text-blue-400">Mid</span>
+                    </div>
+                    <div class="diff-card diff-hard p-2 rounded-xl flex flex-col items-center justify-center gap-0.5" data-diff="hard">
+                        <span class="text-xs">🟠</span>
+                        <span class="text-[10px] font-bold text-amber-400">Hard</span>
+                    </div>
+                    <div class="diff-card diff-impossible active p-2 rounded-xl flex flex-col items-center justify-center gap-0.5" data-diff="impossible">
+                        <span class="text-xs">🔴</span>
+                        <span class="text-[10px] font-bold text-rose-400">God</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Choose Grid Dimension -->
+            <div class="flex flex-col gap-1.5">
+                <div class="flex items-center justify-between px-1">
+                    <span class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">3. Grid Dimension</span>
+                    <span id="lobbyWinRule" class="text-[10px] text-cyan-400 font-semibold">3-in-a-row to win</span>
+                </div>
+                <div class="grid grid-cols-4 gap-1.5 p-1 rounded-xl glass-panel">
+                    <button class="grid-btn pill-btn active py-2 rounded-lg text-xs font-bold" data-size="3">3x3</button>
+                    <button class="grid-btn pill-btn py-2 rounded-lg text-xs font-bold" data-size="4">4x4</button>
+                    <button class="grid-btn pill-btn py-2 rounded-lg text-xs font-bold" data-size="5">5x5</button>
+                    <button class="grid-btn pill-btn py-2 rounded-lg text-xs font-bold" data-size="6">6x6</button>
+                </div>
+            </div>
+
+            <!-- Player Profile & Career Stats -->
+            <div class="glass-panel p-3 rounded-2xl flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-simple text-indigo-400"></i> Career Stats
+                    </span>
+                    <span id="lobbySkillRating" class="text-xs font-black text-cyan-400">Elo: 1000</span>
+                </div>
+                <div class="grid grid-cols-4 gap-2 text-center">
+                    <div class="bg-slate-800/60 rounded-lg p-1.5 border border-slate-700/40">
+                        <span class="text-[9px] text-slate-400 uppercase font-bold block">Games</span>
+                        <span id="statGames" class="text-sm font-black text-white">0</span>
+                    </div>
+                    <div class="bg-slate-800/60 rounded-lg p-1.5 border border-slate-700/40">
+                        <span class="text-[9px] text-emerald-400 uppercase font-bold block">Wins</span>
+                        <span id="statWins" class="text-sm font-black text-emerald-400">0</span>
+                    </div>
+                    <div class="bg-slate-800/60 rounded-lg p-1.5 border border-slate-700/40">
+                        <span class="text-[9px] text-rose-400 uppercase font-bold block">Losses</span>
+                        <span id="statLosses" class="text-sm font-black text-rose-400">0</span>
+                    </div>
+                    <div class="bg-slate-800/60 rounded-lg p-1.5 border border-slate-700/40">
+                        <span class="text-[9px] text-amber-400 uppercase font-bold block">Streak</span>
+                        <span id="statStreak" class="text-sm font-black text-amber-400">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enter Game Button -->
+            <button id="enterGameBtn" class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-indigo-500 to-fuchsia-500 text-white font-black text-base shadow-xl shadow-indigo-500/30 active:scale-95 transition-all flex items-center justify-center gap-2 mt-1">
+                <span>ENTER BATTLE</span>
+                <i class="fa-solid fa-bolt"></i>
+            </button>
+        </div>
+
+        <!-- ==================== SCREEN 2: GAME SCREEN ==================== -->
+        <div id="gameScreen" class="flex flex-col gap-2.5 hidden">
+
+            <!-- Top Game Navigation Tab Bar -->
+            <div class="flex items-center justify-between glass-panel p-2 rounded-2xl">
+                <!-- Back to Lobby -->
+                <button id="backToLobbyBtn" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 border border-slate-700 active:scale-95 transition-transform">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Lobby</span>
+                </button>
+
+                <!-- Current Match Info Tab -->
+                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-950/60 border border-indigo-500/40">
+                    <span id="gameTabIcon" class="text-xs text-fuchsia-400"><i class="fa-solid fa-robot"></i></span>
+                    <span id="gameTabTitle" class="text-xs font-black text-white tracking-wide">3x3 vs God AI</span>
+                </div>
+
+                <!-- Chat Drawer Toggle Button -->
+                <button id="toggleChatBtn" class="relative px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1 border border-slate-700 active:scale-95 transition-transform">
+                    <i class="fa-solid fa-comment-dots text-fuchsia-400"></i>
+                    <span>Chat</span>
+                    <span id="unreadBadge" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse hidden"></span>
+                </button>
+            </div>
+
+            <!-- Scoreboard & Player Stats -->
+            <div class="grid grid-cols-3 gap-2">
+                <div class="glass-panel rounded-xl p-2 flex flex-col items-center justify-center border-t-2 border-t-cyan-400/80">
+                    <span class="text-[10px] uppercase font-bold text-cyan-400 tracking-wider flex items-center gap-1">
+                        <i class="fa-solid fa-xmark"></i> Player (X)
+                    </span>
+                    <span id="scoreX" class="text-xl font-black text-white">0</span>
+                </div>
+                <div class="glass-panel rounded-xl p-2 flex flex-col items-center justify-center border-t-2 border-t-slate-400/50">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Ties</span>
+                    <span id="scoreTies" class="text-xl font-black text-white">0</span>
+                </div>
+                <div class="glass-panel rounded-xl p-2 flex flex-col items-center justify-center border-t-2 border-t-fuchsia-400/80">
+                    <span class="text-[10px] uppercase font-bold text-fuchsia-400 tracking-wider flex items-center gap-1" id="scoreOLabel">
+                        <i class="fa-regular fa-circle"></i> AI (O)
+                    </span>
+                    <span id="scoreO" class="text-xl font-black text-white">0</span>
+                </div>
+            </div>
+
+            <!-- Turn Status Banner -->
+            <div class="flex items-center justify-center min-h-[32px]">
+                <div id="status">
+                    <span class="turn-badge x-turn">
+                        <i class="fa-solid fa-bolt text-xs"></i> X's Turn
+                    </span>
+                </div>
+            </div>
+
+            <!-- Game Board Container -->
+            <div class="relative w-full flex items-center justify-center my-0.5">
+                <div id="board" class="board glass-panel p-2 rounded-2xl">
+                    <!-- Dynamically generated cells -->
+                </div>
+                <div id="winLine" class="win-line" style="display: none;"></div>
+            </div>
+
+            <!-- Action Controls -->
             <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                    <i class="fa-solid fa-gamepad text-white text-sm"></i>
-                </div>
-                <div>
-                    <h1 class="text-lg font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-indigo-400">
-                        NEO TIC-TAC-TOE
-                    </h1>
-                    <p id="learnerBadge" class="text-[10px] text-indigo-300/80 font-medium">AI Learning: Calibrating 🧠</p>
-                </div>
+                <button id="reset-btn" class="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 active:scale-95 transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Restart Match</span>
+                </button>
+                <button id="resetStatsBtn" title="Reset Learned Stats" class="px-3 py-2.5 rounded-xl glass-panel text-slate-400 hover:text-rose-400 active:scale-95 transition-all text-xs font-semibold">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
             </div>
 
-            <!-- Quick Chat Toggle Button -->
-            <button id="toggleChatBtn" class="pill-btn px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 glass-panel">
-                <i class="fa-solid fa-robot text-fuchsia-400"></i>
-                <span>Troll AI</span>
-                <span id="unreadBadge" class="w-2 h-2 rounded-full bg-rose-500 animate-pulse hidden"></span>
-            </button>
-        </header>
-
-        <!-- Grid Size Selector (3x3, 4x4, 5x5, 6x6) -->
-        <div class="flex flex-col gap-1">
-            <div class="flex items-center justify-between px-1 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                <span>Grid Dimension</span>
-                <span id="winRuleText" class="text-cyan-400">3-in-a-row to win</span>
-            </div>
-            <div class="grid grid-cols-4 gap-1.5 p-1 rounded-xl glass-panel">
-                <button class="grid-btn pill-btn active py-1.5 rounded-lg text-xs font-bold" data-size="3">3x3</button>
-                <button class="grid-btn pill-btn py-1.5 rounded-lg text-xs font-bold" data-size="4">4x4</button>
-                <button class="grid-btn pill-btn py-1.5 rounded-lg text-xs font-bold" data-size="5">5x5</button>
-                <button class="grid-btn pill-btn py-1.5 rounded-lg text-xs font-bold" data-size="6">6x6</button>
-            </div>
-        </div>
-
-        <!-- Mode & Difficulty Selectors -->
-        <div class="grid grid-cols-2 gap-2">
-            <!-- Game Mode (AI vs PvP) -->
-            <div class="flex flex-col gap-1">
-                <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider px-1">Game Mode</span>
-                <div class="grid grid-cols-2 gap-1 p-1 rounded-xl glass-panel">
-                    <button class="mode-btn pill-btn active py-1 rounded-lg text-xs flex items-center justify-center gap-1" data-mode="ai">
-                        <i class="fa-solid fa-robot text-[10px]"></i> AI
-                    </button>
-                    <button class="mode-btn pill-btn py-1 rounded-lg text-xs flex items-center justify-center gap-1" data-mode="pvp">
-                        <i class="fa-solid fa-user-group text-[10px]"></i> PvP
-                    </button>
-                </div>
-            </div>
-
-            <!-- AI Difficulty Level -->
-            <div id="diffContainer" class="flex flex-col gap-1">
-                <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider px-1">Difficulty</span>
-                <div class="grid grid-cols-4 gap-1 p-1 rounded-xl glass-panel">
-                    <button class="diff-btn pill-btn py-1 rounded-lg text-[10px] font-bold diff-low" data-diff="low">Low</button>
-                    <button class="diff-btn pill-btn py-1 rounded-lg text-[10px] font-bold diff-mid" data-diff="mid">Mid</button>
-                    <button class="diff-btn pill-btn py-1 rounded-lg text-[10px] font-bold diff-hard" data-diff="hard">Hard</button>
-                    <button class="diff-btn pill-btn active py-1 rounded-lg text-[10px] font-bold diff-impossible" data-diff="impossible">God</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Scoreboard & Player Stats -->
-        <div class="grid grid-cols-3 gap-2">
-            <div class="glass-panel rounded-xl p-2 flex flex-col items-center justify-center border-t-2 border-t-cyan-400/80">
-                <span class="text-[10px] uppercase font-bold text-cyan-400 tracking-wider flex items-center gap-1">
-                    <i class="fa-solid fa-xmark"></i> Player (X)
-                </span>
-                <span id="scoreX" class="text-xl font-black text-white">0</span>
-            </div>
-            <div class="glass-panel rounded-xl p-2 flex flex-col items-center justify-center border-t-2 border-t-slate-400/50">
-                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Ties</span>
-                <span id="scoreTies" class="text-xl font-black text-white">0</span>
-            </div>
-            <div class="glass-panel rounded-xl p-2 flex flex-col items-center justify-center border-t-2 border-t-fuchsia-400/80">
-                <span class="text-[10px] uppercase font-bold text-fuchsia-400 tracking-wider flex items-center gap-1">
-                    <i class="fa-regular fa-circle"></i> AI (O)
-                </span>
-                <span id="scoreO" class="text-xl font-black text-white">0</span>
-            </div>
-        </div>
-
-        <!-- Status / Turn Banner -->
-        <div class="flex items-center justify-center min-h-[36px]">
-            <div id="status">
-                <span class="turn-badge x-turn">
-                    <i class="fa-solid fa-bolt text-xs"></i> X's Turn
-                </span>
-            </div>
-        </div>
-
-        <!-- Game Board Container -->
-        <div class="relative w-full flex items-center justify-center my-1">
-            <div id="board" class="board glass-panel p-2 rounded-2xl">
-                <!-- Dynamically generated cells -->
-            </div>
-            <div id="winLine" class="win-line" style="display: none;"></div>
-        </div>
-
-        <!-- Action Controls -->
-        <div class="flex items-center gap-2 mt-1">
-            <button id="reset-btn" class="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 active:scale-95 transition-all flex items-center justify-center gap-2">
-                <i class="fa-solid fa-rotate-right"></i>
-                <span>Restart Game</span>
-            </button>
-            <button id="resetStatsBtn" title="Reset Learned Stats" class="px-3 py-2.5 rounded-xl glass-panel text-slate-400 hover:text-rose-400 active:scale-95 transition-all text-xs font-semibold">
-                <i class="fa-solid fa-trash-can"></i>
-            </button>
         </div>
 
     </div>
 
     <!-- Mini Floating In-Game Chat Drawer -->
-    <div id="chatDrawer" class="chat-drawer glass-panel rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-fuchsia-500/30">
+    <div id="chatDrawer" class="chat-drawer glass-panel rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-fuchsia-500/30 minimized">
 
         <!-- Chat Header -->
         <div class="bg-slate-900/90 px-3 py-2 flex items-center justify-between border-b border-slate-700/50 cursor-pointer" id="chatHeader">
@@ -154,7 +261,7 @@
         <!-- Chat Body -->
         <div class="chat-body flex flex-col">
             <!-- Message List -->
-            <div id="chatMessages" class="p-2.5 flex flex-col gap-2 max-h-44 overflow-y-auto text-xs">
+            <div id="chatMessages" class="p-2.5 flex flex-col gap-2 max-h-40 overflow-y-auto text-xs">
                 <!-- AI Welcome Message -->
                 <div class="chat-bubble-ai p-2 self-start max-w-[85%]">
                     Ready to lose in binary? Make your move! 🤖⚡

@@ -2,21 +2,43 @@
 (function() {
     'use strict';
 
-    // DOM Elements
+    // Screens
+    const lobbyScreen = document.getElementById('lobbyScreen');
+    const gameScreen = document.getElementById('gameScreen');
+
+    // Lobby Elements
+    const oppAiCard = document.getElementById('oppAiCard');
+    const oppPvpCard = document.getElementById('oppPvpCard');
+    const lobbyDiffSection = document.getElementById('lobbyDiffSection');
+    const diffCards = document.querySelectorAll('.diff-card');
+    const gridBtns = document.querySelectorAll('.grid-btn');
+    const lobbyWinRule = document.getElementById('lobbyWinRule');
+    const enterGameBtn = document.getElementById('enterGameBtn');
+    const lobbyLearnerBadge = document.getElementById('lobbyLearnerBadge');
+    const lobbySkillRating = document.getElementById('lobbySkillRating');
+    const statGames = document.getElementById('statGames');
+    const statWins = document.getElementById('statWins');
+    const statLosses = document.getElementById('statLosses');
+    const statStreak = document.getElementById('statStreak');
+
+    // Game Screen Elements
+    const backToLobbyBtn = document.getElementById('backToLobbyBtn');
+    const gameTabIcon = document.getElementById('gameTabIcon');
+    const gameTabTitle = document.getElementById('gameTabTitle');
+    const scoreOLabel = document.getElementById('scoreOLabel');
     const board = document.getElementById('board');
     const status = document.getElementById('status');
     const resetBtn = document.getElementById('reset-btn');
     const resetStatsBtn = document.getElementById('resetStatsBtn');
     const winLine = document.getElementById('winLine');
     const appContainer = document.getElementById('app-container');
-    const winRuleText = document.getElementById('winRuleText');
-    const learnerBadge = document.getElementById('learnerBadge');
 
-    // Selectors
-    const gridBtns = document.querySelectorAll('.grid-btn');
-    const modeBtns = document.querySelectorAll('.mode-btn');
-    const diffBtns = document.querySelectorAll('.diff-btn');
-    const diffContainer = document.getElementById('diffContainer');
+    // Top In-App Toast Elements
+    const topToast = document.getElementById('topToast');
+    const toastContent = document.getElementById('toastContent');
+    const toastMessage = document.getElementById('toastMessage');
+    const closeToastBtn = document.getElementById('closeToastBtn');
+    let toastTimeout = null;
 
     // Chat Elements
     const chatDrawer = document.getElementById('chatDrawer');
@@ -94,7 +116,7 @@
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
                 osc.start(now);
                 osc.stop(now + 0.25);
-            } else if (type === 'chat') {
+            } else if (type === 'chat' || type === 'toast') {
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(880, now);
                 osc.frequency.setValueAtTime(1320, now + 0.06);
@@ -104,14 +126,15 @@
                 osc.stop(now + 0.15);
             }
         } catch (e) {
-            // Audio error safety
+            // Audio safety
         }
     }
 
     // State Variables
-    let gridSize = 3;
-    let gameMode = 'ai'; // 'ai' or 'pvp'
-    let difficulty = 'impossible'; // 'low', 'mid', 'hard', 'impossible'
+    let selectedOpponent = 'ai'; // 'ai' or 'pvp'
+    let selectedDifficulty = 'impossible'; // 'low', 'mid', 'hard', 'impossible'
+    let selectedGridSize = 3;
+
     let gameState = [];
     let currentPlayer = 'X';
     let gameActive = true;
@@ -119,86 +142,99 @@
     let scores = { X: 0, O: 0, Ties: 0 };
     let isChatMinimized = true;
 
-    // Initialize UI
-    initGame();
-    updateLearnerBadge();
+    // Initialize Lobby
+    updateLobbyStats();
 
-    // 1. Grid Size Selector
+    // 1. Opponent Selection
+    oppAiCard.addEventListener('click', () => {
+        oppAiCard.classList.add('active');
+        oppPvpCard.classList.remove('active');
+        selectedOpponent = 'ai';
+        lobbyDiffSection.classList.remove('hidden');
+    });
+
+    oppPvpCard.addEventListener('click', () => {
+        oppPvpCard.classList.add('active');
+        oppAiCard.classList.remove('active');
+        selectedOpponent = 'pvp';
+        lobbyDiffSection.classList.add('hidden');
+    });
+
+    // 2. Difficulty Selection
+    diffCards.forEach(card => {
+        card.addEventListener('click', () => {
+            diffCards.forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            selectedDifficulty = card.getAttribute('data-diff');
+        });
+    });
+
+    // 3. Grid Dimension Selection
     gridBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             gridBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            gridSize = parseInt(btn.getAttribute('data-size'));
-            updateWinRuleText();
-            scores = { X: 0, O: 0, Ties: 0 };
-            updateScoreBoard();
-            initGame();
+            selectedGridSize = parseInt(btn.getAttribute('data-size'));
+            const winLen = GameLogic.getWinLength(selectedGridSize);
+            lobbyWinRule.textContent = `${winLen}-in-a-row to win`;
         });
     });
 
-    // 2. Mode Selector (AI vs PvP)
-    modeBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            modeBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            gameMode = btn.getAttribute('data-mode');
-
-            if (gameMode === 'pvp') {
-                diffContainer.classList.add('opacity-40', 'pointer-events-none');
-            } else {
-                diffContainer.classList.remove('opacity-40', 'pointer-events-none');
-            }
-
-            scores = { X: 0, O: 0, Ties: 0 };
-            updateScoreBoard();
-            initGame();
-        });
-    });
-
-    // 3. Difficulty Selector
-    diffBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            diffBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            difficulty = btn.getAttribute('data-diff');
-            initGame();
-            addAiMessage(`Difficulty calibrated to ${difficulty.toUpperCase()}. Prepare yourself! ⚡`, 'chat');
-        });
-    });
-
-    resetBtn.addEventListener('click', () => {
-        initGame();
+    // Enter Game Screen
+    enterGameBtn.addEventListener('click', () => {
+        initAudio();
         playSound('chat');
+        launchGame();
     });
 
-    resetStatsBtn.addEventListener('click', () => {
-        if (confirm('Reset AI learned stats and player rating?')) {
-            LearningEngine.resetStats();
-            updateLearnerBadge();
-            scores = { X: 0, O: 0, Ties: 0 };
-            updateScoreBoard();
-            addAiMessage('All neural weights reset. We start from scratch! 🧠', 'chat');
-        }
+    // Back to Lobby
+    backToLobbyBtn.addEventListener('click', () => {
+        gameScreen.classList.add('hidden');
+        lobbyScreen.classList.remove('hidden');
+        hideTopToast();
+        updateLobbyStats();
     });
 
-    function updateWinRuleText() {
-        const winLen = GameLogic.getWinLength(gridSize);
-        winRuleText.textContent = `${winLen}-in-a-row to win`;
-    }
-
-    function updateScoreBoard() {
-        document.getElementById('scoreX').innerText = scores.X;
-        document.getElementById('scoreO').innerText = scores.O;
-        document.getElementById('scoreTies').innerText = scores.Ties;
-    }
-
-    function updateLearnerBadge() {
+    function updateLobbyStats() {
         const stats = LearningEngine.getStats();
-        learnerBadge.textContent = `AI Learning: ${stats.playerStyle} (Elo: ${stats.skillRating})`;
+        lobbyLearnerBadge.textContent = `AI Learning: ${stats.playerStyle}`;
+        lobbySkillRating.textContent = `Elo: ${stats.skillRating}`;
+        statGames.textContent = stats.totalGames;
+        statWins.textContent = stats.wins;
+        statLosses.textContent = stats.losses;
+        statStreak.textContent = stats.winStreak;
     }
 
-    function initGame() {
-        gameState = GameLogic.createState(gridSize);
+    function launchGame() {
+        lobbyScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+
+        // Update Top Navigation Tab Info
+        if (selectedOpponent === 'ai') {
+            gameTabIcon.innerHTML = `<i class="fa-solid fa-robot text-fuchsia-400"></i>`;
+            const diffName = selectedDifficulty === 'impossible' ? 'God AI' : `${selectedDifficulty.toUpperCase()} AI`;
+            gameTabTitle.textContent = `${selectedGridSize}x${selectedGridSize} vs ${diffName}`;
+            scoreOLabel.innerHTML = `<i class="fa-regular fa-circle"></i> AI (O)`;
+        } else {
+            gameTabIcon.innerHTML = `<i class="fa-solid fa-user-group text-cyan-400"></i>`;
+            gameTabTitle.textContent = `${selectedGridSize}x${selectedGridSize} PvP Match`;
+            scoreOLabel.innerHTML = `<i class="fa-regular fa-circle"></i> Player (O)`;
+        }
+
+        scores = { X: 0, O: 0, Ties: 0 };
+        updateScoreBoard();
+        initGameBoard();
+
+        // Initial AI Taunt if AI mode
+        if (selectedOpponent === 'ai') {
+            const startRoast = ChatEngine.getLocalRoast('start');
+            addAiMessage(startRoast, false);
+            showTopToast(startRoast);
+        }
+    }
+
+    function initGameBoard() {
+        gameState = GameLogic.createState(selectedGridSize);
         currentPlayer = 'X';
         gameActive = true;
         moveCount = 0;
@@ -208,15 +244,21 @@
         status.innerHTML = `<span class="turn-badge x-turn"><i class="fa-solid fa-bolt text-xs"></i> X's Turn</span>`;
 
         // Generate Board DOM
-        board.style.setProperty('--grid-size', gridSize);
+        board.style.setProperty('--grid-size', selectedGridSize);
         board.innerHTML = '';
-        for (let i = 0; i < gridSize * gridSize; i++) {
+        for (let i = 0; i < selectedGridSize * selectedGridSize; i++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
             cell.setAttribute('data-index', i);
             cell.addEventListener('click', handleCellClick);
             board.appendChild(cell);
         }
+    }
+
+    function updateScoreBoard() {
+        document.getElementById('scoreX').innerText = scores.X;
+        document.getElementById('scoreO').innerText = scores.O;
+        document.getElementById('scoreTies').innerText = scores.Ties;
     }
 
     function handleCellClick(e) {
@@ -229,20 +271,20 @@
         // Human Move
         moveCount++;
         if (currentPlayer === 'X') {
-            LearningEngine.recordMove(gridSize, index, moveCount);
+            LearningEngine.recordMove(selectedGridSize, index, moveCount);
         }
 
         makeMove(index, currentPlayer);
 
         // AI Move Trigger
-        if (gameActive && gameMode === 'ai' && currentPlayer === 'O') {
-            gameActive = false; // Prevent clicks while AI computes
+        if (gameActive && selectedOpponent === 'ai' && currentPlayer === 'O') {
+            gameActive = false; // Prevent double taps during compute
             aiChatStatus.textContent = 'Computing optimal move... ⚡';
 
             // Instant 0ms Bitboard Computation
             setTimeout(() => {
-                const userWeights = LearningEngine.getTendencyWeights(gridSize);
-                const aiMove = BitboardEngine.getBestMove(gameState, gridSize, difficulty, userWeights);
+                const userWeights = LearningEngine.getTendencyWeights(selectedGridSize);
+                const aiMove = BitboardEngine.getBestMove(gameState, selectedGridSize, selectedDifficulty, userWeights);
 
                 if (aiMove !== -1 && gameState[aiMove] === '') {
                     gameActive = true;
@@ -255,7 +297,7 @@
                 } else {
                     gameActive = true;
                 }
-            }, 100);
+            }, 80);
         }
     }
 
@@ -273,13 +315,13 @@
         if (gameActive) {
             currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
             const badgeClass = currentPlayer === 'X' ? 'x-turn' : 'o-turn';
-            const icon = currentPlayer === 'X' ? 'fa-bolt' : 'fa-robot';
+            const icon = currentPlayer === 'X' ? 'fa-bolt' : (selectedOpponent === 'ai' ? 'fa-robot' : 'fa-circle-user');
             status.innerHTML = `<span class="turn-badge ${badgeClass}"><i class="fa-solid ${icon} text-xs"></i> ${currentPlayer}'s Turn</span>`;
         }
     }
 
     function checkWinOrDraw() {
-        const result = GameLogic.getWinner(gameState, gridSize);
+        const result = GameLogic.getWinner(gameState, selectedGridSize);
 
         if (result) {
             gameActive = false;
@@ -290,8 +332,7 @@
             if (currentPlayer === 'X') {
                 status.innerHTML = `<span class="turn-badge win-badge"><i class="fa-solid fa-trophy"></i> Player X Wins! 🏆</span>`;
                 playSound('win');
-                LearningEngine.recordGameEnd('win', gridSize, difficulty);
-                updateLearnerBadge();
+                LearningEngine.recordGameEnd('win', selectedGridSize, selectedDifficulty);
 
                 if (window.confetti) {
                     confetti({
@@ -302,20 +343,20 @@
                     });
                 }
 
-                if (gameMode === 'ai') {
-                    triggerOutcomeRoast('user_win', `Player won on ${gridSize}x${gridSize}`);
+                if (selectedOpponent === 'ai') {
+                    triggerOutcomeRoast('user_win', `Player won on ${selectedGridSize}x${selectedGridSize}`);
                 }
             } else {
-                status.innerHTML = `<span class="turn-badge o-turn"><i class="fa-solid fa-skull"></i> AI (O) Wins! 🤖</span>`;
+                const winnerLabel = selectedOpponent === 'ai' ? 'AI (O) Wins! 🤖' : 'Player O Wins! 🎉';
+                status.innerHTML = `<span class="turn-badge o-turn"><i class="fa-solid fa-skull"></i> ${winnerLabel}</span>`;
                 playSound('loss');
-                LearningEngine.recordGameEnd('loss', gridSize, difficulty);
-                updateLearnerBadge();
+                LearningEngine.recordGameEnd('loss', selectedGridSize, selectedDifficulty);
 
                 appContainer.classList.add('shake');
                 setTimeout(() => appContainer.classList.remove('shake'), 400);
 
-                if (gameMode === 'ai') {
-                    triggerOutcomeRoast('ai_win', `AI crushed human on ${gridSize}x${gridSize}`);
+                if (selectedOpponent === 'ai') {
+                    triggerOutcomeRoast('ai_win', `AI crushed human on ${selectedGridSize}x${selectedGridSize}`);
                 }
             }
             return;
@@ -325,14 +366,13 @@
             gameActive = false;
             scores.Ties++;
             updateScoreBoard();
-            LearningEngine.recordGameEnd('draw', gridSize, difficulty);
-            updateLearnerBadge();
+            LearningEngine.recordGameEnd('draw', selectedGridSize, selectedDifficulty);
 
             status.innerHTML = `<span class="turn-badge draw-badge"><i class="fa-solid fa-handshake"></i> It's a Draw! 🤝</span>`;
             playSound('draw');
 
-            if (gameMode === 'ai') {
-                triggerOutcomeRoast('draw', `Draw on ${gridSize}x${gridSize}`);
+            if (selectedOpponent === 'ai') {
+                triggerOutcomeRoast('draw', `Draw on ${selectedGridSize}x${selectedGridSize}`);
             }
             return;
         }
@@ -368,29 +408,64 @@
         }, 50);
     }
 
-    // Contextual Chat Triggers
+    // Contextual Chat & Toast Roasts
     async function triggerAiBanterAfterMove(humanMove, aiMove) {
         if (moveCount === 2) {
-            // First exchange
             const roast = ChatEngine.getLocalRoast('start');
             addAiMessage(roast);
+            showTopToast(roast);
             return;
         }
 
         // Random chance of banter during match
-        if (Math.random() < 0.4) {
+        if (Math.random() < 0.45) {
             const roast = await ChatEngine.getOnlineRoastOrFallback(
                 `Human played slot ${humanMove}, AI responded at ${aiMove}`,
                 'blunder'
             );
             addAiMessage(roast);
+            showTopToast(roast);
         }
     }
 
     async function triggerOutcomeRoast(category, context) {
         const roast = await ChatEngine.getOnlineRoastOrFallback(context, category);
         addAiMessage(roast, 'chat');
+        showTopToast(roast);
     }
+
+    // Top In-App Notification Toast Functions
+    function showTopToast(message) {
+        if (!message) return;
+        toastMessage.textContent = message;
+        topToast.classList.add('show');
+        playSound('toast');
+
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            hideTopToast();
+        }, 4500);
+    }
+
+    function hideTopToast() {
+        topToast.classList.remove('show');
+        if (toastTimeout) {
+            clearTimeout(toastTimeout);
+            toastTimeout = null;
+        }
+    }
+
+    // Toast click opens chat drawer to reply!
+    toastContent.addEventListener('click', () => {
+        hideTopToast();
+        toggleChat(true);
+        setTimeout(() => chatInput.focus(), 250);
+    });
+
+    closeToastBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hideTopToast();
+    });
 
     // Chat Drawer UI Management
     function toggleChat(forceOpen = null) {
@@ -410,9 +485,6 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
     }
-
-    // Start minimized on mobile
-    toggleChat(false);
 
     toggleChatBtn.addEventListener('click', () => toggleChat());
     chatHeader.addEventListener('click', () => toggleChat());
@@ -456,6 +528,7 @@
                 'blunder'
             );
             addAiMessage(reply);
+            showTopToast(reply);
         }, 500);
     }
 
@@ -471,8 +544,24 @@
             setTimeout(() => {
                 const reply = ChatEngine.getEmojiReactionReply(emoji);
                 addAiMessage(reply);
+                showTopToast(reply);
             }, 400);
         });
+    });
+
+    resetBtn.addEventListener('click', () => {
+        initGameBoard();
+        playSound('chat');
+    });
+
+    resetStatsBtn.addEventListener('click', () => {
+        if (confirm('Reset AI learned stats and player rating?')) {
+            LearningEngine.resetStats();
+            scores = { X: 0, O: 0, Ties: 0 };
+            updateScoreBoard();
+            addAiMessage('All neural weights reset. We start from scratch! 🧠', 'chat');
+            showTopToast('Neural weights reset! 🧠');
+        }
     });
 
 })();
