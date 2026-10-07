@@ -7,25 +7,101 @@
 }(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    const winningConditions = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8],
-        [0, 3, 6], [1, 4, 7], [2, 5, 8],
-        [0, 4, 8], [2, 4, 6]
-    ];
+    // Winning streak length required per board size:
+    // 3x3 -> 3
+    // 4x4 -> 4
+    // 5x5 -> 4
+    // 6x6 -> 4
+    function getWinLength(size) {
+        if (size <= 3) return 3;
+        return 4;
+    }
 
-    function createState() {
-        return Array(9).fill('');
+    // Cache winning patterns per board size
+    const patternsCache = {};
+
+    function generateWinningPatterns(size, winLen) {
+        winLen = winLen || getWinLength(size);
+        const cacheKey = `${size}_${winLen}`;
+        if (patternsCache[cacheKey]) return patternsCache[cacheKey];
+
+        const patterns = [];
+
+        // 1. Horizontal
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c <= size - winLen; c++) {
+                const line = [];
+                for (let k = 0; k < winLen; k++) {
+                    line.push(r * size + (c + k));
+                }
+                patterns.push(line);
+            }
+        }
+
+        // 2. Vertical
+        for (let c = 0; c < size; c++) {
+            for (let r = 0; r <= size - winLen; r++) {
+                const line = [];
+                for (let k = 0; k < winLen; k++) {
+                    line.push((r + k) * size + c);
+                }
+                patterns.push(line);
+            }
+        }
+
+        // 3. Diagonal (\)
+        for (let r = 0; r <= size - winLen; r++) {
+            for (let c = 0; c <= size - winLen; c++) {
+                const line = [];
+                for (let k = 0; k < winLen; k++) {
+                    line.push((r + k) * size + (c + k));
+                }
+                patterns.push(line);
+            }
+        }
+
+        // 4. Anti-Diagonal (/)
+        for (let r = 0; r <= size - winLen; r++) {
+            for (let c = winLen - 1; c < size; c++) {
+                const line = [];
+                for (let k = 0; k < winLen; k++) {
+                    line.push((r + k) * size + (c - k));
+                }
+                patterns.push(line);
+            }
+        }
+
+        patternsCache[cacheKey] = patterns;
+        return patterns;
+    }
+
+    function createState(size = 3) {
+        return Array(size * size).fill('');
     }
 
     function isFull(state) {
         return state.every(function (cell) { return cell !== ''; });
     }
 
-    function getWinner(state) {
-        for (let i = 0; i < winningConditions.length; i++) {
-            const [a, b, c] = winningConditions[i];
-            if (state[a] && state[a] === state[b] && state[a] === state[c]) {
-                return { winner: state[a], pattern: winningConditions[i] };
+    function getWinner(state, size = 3, winLen) {
+        winLen = winLen || getWinLength(size);
+        const patterns = generateWinningPatterns(size, winLen);
+
+        for (let i = 0; i < patterns.length; i++) {
+            const pattern = patterns[i];
+            const first = state[pattern[0]];
+            if (!first) continue;
+
+            let win = true;
+            for (let j = 1; j < pattern.length; j++) {
+                if (state[pattern[j]] !== first) {
+                    win = false;
+                    break;
+                }
+            }
+
+            if (win) {
+                return { winner: first, pattern: pattern };
             }
         }
         return null;
@@ -50,7 +126,8 @@
     }
 
     return {
-        winningConditions,
+        getWinLength,
+        generateWinningPatterns,
         createState,
         isFull,
         getWinner,
